@@ -1,5 +1,6 @@
 package edu.cnm.deepdive.animals.controller;
 
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -38,36 +39,43 @@ public class MainActivity extends AppCompatActivity {
       }
 
       @Override
-      public void onNothingSelected(AdapterView<?> adapterView) {}
+      public void onNothingSelected(AdapterView<?> adapterView) {
+      }
     });
-    new Retriever().start();
+    new RetrieverTask().execute();
   }
 
-  private class Retriever extends Thread {
+  private class RetrieverTask extends AsyncTask<Void, Void, List<Animal>> {
 
     @Override
-    public void run() {
+    protected List<Animal> doInBackground(Void... voids) {
       try {
         Response<List<Animal>> response = WebServiceProxy.getInstance()
             .getAnimals(BuildConfig.API_KEY)
             .execute();
         if (response.isSuccessful()) {
-          List<Animal> animals = response.body();
-          adapter = new ArrayAdapter<>(MainActivity.this,
-              R.layout.item_animal_spinner, animals);
-          adapter.setDropDownViewResource(android.R.layout.simple_spinner_item);
-          runOnUiThread(() -> {
-            animalSelector.setAdapter(adapter);
-          });
+          return response.body();
         } else {
           Log.e(getClass().getName(), response.message());
+          cancel(true);
+          return null;
         }
       } catch (IOException e) {
-        e.printStackTrace();
-        {
-          Log.e(getClass().getName(), e.getMessage(), e);
-        }
+        Log.e(getClass().getName(), e.getMessage(), e);
+        cancel(true);
+        return null;
       }
     }
+
+    @Override
+    protected void onPostExecute(List<Animal> animals) {
+      super.onPostExecute(animals);
+      adapter = new ArrayAdapter<>(MainActivity.this,
+          R.layout.item_animal_spinner, animals);
+      adapter.setDropDownViewResource(android.R.layout.simple_spinner_item);
+      animalSelector.setAdapter(adapter);
+
+    }
+
   }
 }
